@@ -1,8 +1,25 @@
-//ProjectState Class
+// Project Type
+enum ProjectStatus {
+  Active,
+  Finished,
+}
+
+class Project {
+  constructor(
+    public id: string,
+    public title: string,
+    public description: string,
+    public people: number,
+    public status: ProjectStatus
+  ) {}
+}
+
+// Project State Management
+type Listener = (items: Project[]) => void
 
 class ProjectState {
-  private listeners: any[] = []
-  private projects: any[] = []
+  private listeners: Listener[] = []
+  private projects: Project[] = []
   private static instance: ProjectState
 
   private constructor() {}
@@ -15,17 +32,18 @@ class ProjectState {
     return this.instance
   }
 
-  addListener(listenerFn: Function) {
+  addListener(listenerFn: Listener) {
     this.listeners.push(listenerFn)
   }
 
   addProject(title: string, description: string, numOfPeople: number) {
-    const newProject = {
-      id: Math.random().toString(),
+    const newProject = new Project(
+      Math.random().toString(),
       title,
       description,
-      people: numOfPeople,
-    }
+      numOfPeople,
+      ProjectStatus.Active
+    )
     this.projects.push(newProject)
     for (const listenerFn of this.listeners) {
       listenerFn(this.projects.slice())
@@ -92,12 +110,12 @@ function autobind(_: any, _2: string, descriptor: PropertyDescriptor) {
   return adjDescriptor
 }
 
-//ProjectList Class
+// ProjectList Class
 class ProjectList {
   templateElement: HTMLTemplateElement
   hostElement: HTMLDivElement
   element: HTMLElement
-  assignedProjects: any[]
+  assignedProjects: Project[]
 
   constructor(private type: 'active' | 'finished') {
     this.templateElement = document.getElementById(
@@ -105,36 +123,40 @@ class ProjectList {
     )! as HTMLTemplateElement
     this.hostElement = document.getElementById('app')! as HTMLDivElement
     this.assignedProjects = []
+
     const importedNode = document.importNode(this.templateElement.content, true)
     this.element = importedNode.firstElementChild as HTMLElement
-    this.element.id = `${type}-projects`
-    projectState.addListener((projects: any[]) => {
+    this.element.id = `${this.type}-projects`
+
+    projectState.addListener((projects: Project[]) => {
       this.assignedProjects = projects
       this.renderProjects()
     })
+
     this.attach()
     this.renderContent()
   }
 
   private renderProjects() {
     const listEl = document.getElementById(
-      `${this.type}-project-list`
+      `${this.type}-projects-list`
     )! as HTMLUListElement
-    for (const projectItem of this.assignedProjects) {
+    for (const prjItem of this.assignedProjects) {
       const listItem = document.createElement('li')
-      listItem.textContent = projectItem.title
+      listItem.textContent = prjItem.title
       listEl.appendChild(listItem)
     }
   }
 
-  private attach() {
-    this.hostElement.insertAdjacentElement('beforeend', this.element)
-  }
   private renderContent() {
-    const listId = `${this.type}-project-list`
+    const listId = `${this.type}-projects-list`
     this.element.querySelector('ul')!.id = listId
     this.element.querySelector('h2')!.textContent =
-      this.type.toUpperCase() + 'PROJECTS'
+      this.type.toUpperCase() + ' PROJECTS'
+  }
+
+  private attach() {
+    this.hostElement.insertAdjacentElement('beforeend', this.element)
   }
 }
 
@@ -217,7 +239,6 @@ class ProjectInput {
     if (Array.isArray(userInput)) {
       const [title, desc, people] = userInput
       projectState.addProject(title, desc, people)
-      console.log(title, desc, people)
       this.clearInputs()
     }
   }
@@ -232,5 +253,5 @@ class ProjectInput {
 }
 
 const prjInput = new ProjectInput()
-const activeProjectList = new ProjectList('active')
-const finishedProjectList = new ProjectList('finished')
+const activePrjList = new ProjectList('active')
+const finishedPrjList = new ProjectList('finished')
